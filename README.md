@@ -32,7 +32,7 @@
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/YOUR_USERNAME/KSAS.git
+    git clone https://github.com/Cesargg55/KSAS.git
     cd KSAS
     ```
 
