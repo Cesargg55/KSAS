@@ -1,5 +1,5 @@
 # 🔭 KSAS - Kaesar Star Analysis System
-### Autonomous Exoplanet Hunter (v4.0 Professional Edition)
+### Autonomous Exoplanet Hunter (v4.1 Professional Edition)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
@@ -30,28 +30,56 @@
 
 ## 📦 Installation
 
+### Windows 🪟
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/Cesargg55/KSAS.git
     cd KSAS
     ```
-
 2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-    *(Requires: `lightkurve`, `numpy`, `scipy`, `matplotlib`, `transitleastsquares`, `astropy`, `requests`)*
+
+### Linux 🐧
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Cesargg55/KSAS.git
+    cd KSAS
+    ```
+2.  **Install system dependencies (Ubuntu/Debian):**
+    ```bash
+    sudo apt-get install python3-tk python3-pip
+    ```
+3.  **Install Python dependencies:**
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+4.  **Make scripts executable:**
+    ```bash
+    chmod +x *.sh
+    ```
 
 ---
 
 ## 🚀 Usage
 
-### 1. Start the Hunter
-Run the main batch file to start the autonomous hunter:
+### Windows 🪟
+Double-click **`ejecutar_ksas.bat`** or run in terminal:
 ```bash
 ejecutar_ksas.bat
 ```
-*The system will automatically download TESS data, analyze it, and save promising candidates to `candidates.json`.*
+
+### Linux 🐧
+Run the shell script:
+```bash
+./ejecutar_ksas.sh
+```
+
+### 🖥️ Headless Mode (Server/VPS)
+KSAS automatically detects if a graphical interface is available.
+*   **Desktop:** Launches the full GUI with real-time plots.
+*   **Server/SSH:** Automatically switches to **Headless Mode**. It will run in the terminal, processing stars and saving candidates to `candidates.json` without opening any windows. Ideal for VPS or long-running background tasks.
 
 ### 2. Review Candidates
 Open the **Candidate Manager** or **Scanner** from the GUI to review your findings.

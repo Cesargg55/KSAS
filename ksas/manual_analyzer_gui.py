@@ -230,8 +230,37 @@ class ManualAnalyzerWindow:
                         tic_id=tic_id,
                         period=period,
                         depth=tls_result.depth if tls_result else bls_result.depth,
-                        snr=tls_result.sde if tls_result else bls_result.power
+                        bls_power=bls_result.power,
+                        tls_sde=tls_result.sde if tls_result else None,
+                        vetting_passed=vet_result.passed
                     )
+                    
+                    # Calculate Score immediately
+                    from ksas.candidate_quality_analyzer import CandidateQualityAnalyzer
+                    quality_analyzer = CandidateQualityAnalyzer()
+                    
+                    # Create a temporary result dict for the analyzer
+                    # Use MAX of BLS Power and TLS SDE to ensure consistent scoring with DB
+                    best_snr = max(bls_result.power, tls_result.sde if tls_result else 0)
+                    
+                    temp_result = {
+                        'tic_id': tic_id,
+                        'period': period,
+                        'depth': tls_result.depth if tls_result else bls_result.depth,
+                        'snr': best_snr,
+                        'vetting_passed': vet_result.passed
+                    }
+                    
+                    score_data = quality_analyzer.analyze_candidate(tic_id, temp_result)
+                    
+                    # Update DB with score
+                    candidate_db.update_candidate(tic_id, {
+                        'score': score_data['score'],
+                        'quality': score_data['quality'],
+                        'analysis_summary': score_data['recommendation']
+                    })
+                    
+                    self.log(f"✓ Scored: {score_data['score']}/100 ({score_data['quality']})")
                     self.log("")
                     
                     # Generate report
@@ -240,10 +269,6 @@ class ManualAnalyzerWindow:
                     
                     result_to_show = tls_result if tls_result and tls_analyzer.is_significant(tls_result) else bls_result
                     visualizer.save_plots(clean_lc, bls_periodogram, result_to_show)
-                    
-                    safe_id = tic_id.replace(" ", "_")
-                    report_path = f"output/{safe_id}_report.png"
-                    self.log(f"✓ Report saved: {report_path}")
                     self.log("")
                     
                     self.window.after(0, self._analysis_complete, True)

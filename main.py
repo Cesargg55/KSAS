@@ -311,9 +311,87 @@ def handle_result(result, interface, use_gui, stats):
     elif status == 'error':
         interface.send_update('log', f"❌ Error with {target}: {result.get('error', 'Unknown')}")
 
+def check_missing_reports(candidate_db, interface):
+    """
+    Check for missing report images and optionally generate them.
+    """
+    import tkinter as tk
+    from tkinter import messagebox
+    from ksas.locales import T
+    
+    missing_tics = []
+    for tic_id in candidate_db.candidates:
+        safe_id = tic_id.replace(" ", "_")
+        report_path = os.path.join("output", f"{safe_id}_report.png")
+        if not os.path.exists(report_path):
+            missing_tics.append(tic_id)
+            
+    if not missing_tics:
+        return
+
+    # Ask user
+    root = tk.Tk()
+    root.withdraw()
+    
+    response = messagebox.askyesno(
+        T.get('reports_missing_title'),
+        T.get('reports_missing_prompt').format(count=len(missing_tics))
+    )
+    
+    if response:
+        print(T.get('generating_reports'))
+        interface.send_update('log', T.get('generating_reports'))
+        
+        # Initialize components locally
+        downloader = DataDownloader()
+        processor = DataProcessor()
+        bls_analyzer = Analyzer(snr_threshold=5) # Low threshold to ensure we get a plot
+        visualizer = Visualizer()
+        
+        count = 0
+        for tic in missing_tics:
+            try:
+                interface.send_update('log', f"Generating report for {tic}...")
+                
+                # 1. Download
+                lc = downloader.download_lightcurve(tic)
+                if lc is None:
+                    continue
+                
+                # 2. Process
+                clean_lc = processor.process_lightcurve(lc)
+                if clean_lc is None:
+                    continue
+                
+                # 3. BLS (to get periodogram)
+                bls_result, bls_periodogram = bls_analyzer.analyze(clean_lc, tic)
+                
+                if bls_result:
+                    # Use stored values from DB if possible to ensure consistency?
+                    # Or just use the new analysis. 
+                    # Let's use the new analysis for the plot, it should be similar.
+                    # Ideally we would force the period/t0 from DB onto the plot, 
+                    # but Visualizer takes a Result object.
+                    # Let's just save what we find now.
+                    visualizer.save_plots(clean_lc, bls_periodogram, bls_result)
+                    count += 1
+                    print(f"Generated: {tic}")
+                    
+            except Exception as e:
+                logger.error(f"Error generating report for {tic}: {e}")
+        
+        msg = T.get('report_generation_complete')
+        print(msg)
+        interface.send_update('log', msg)
+        messagebox.showinfo(T.get('success'), f"{msg} ({count}/{len(missing_tics)})")
+    else:
+        print(T.get('report_generation_skipped'))
+    
+    root.destroy()
+
 def main():
     print("="*60)
-    print("   KSAS v4.0 - Kaesar Star Analysis System")
+    print("   KSAS v4.1 - Kaesar Star Analysis System")
     print("   PERFORMANCE OPTIMIZED - MULTI-THREADED")
     print("="*60)
     
@@ -343,7 +421,16 @@ def main():
         
         # Initialize candidate database and link to GUI
         candidate_db = CandidateDatabase()
+        
+        # Check for migration (CRITICAL: Do this before linking to GUI or starting threads)
+        if not candidate_db.check_and_migrate():
+            print("Migration cancelled or failed. Exiting.")
+            sys.exit(0)
+            
         interface.candidate_db = candidate_db
+        
+        # Check for missing reports (Optional)
+        check_missing_reports(candidate_db, interface)
         
         # Start analysis in background thread
         analysis_thread = threading.Thread(

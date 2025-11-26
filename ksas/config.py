@@ -42,7 +42,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # TODO: REPLACE THIS WITH YOUR ACTUAL GITHUB REPO URL
 GITHUB_REPO = "https://github.com/Cesargg55/KSAS.git" 
-CURRENT_VERSION = "4.0.0"
+CURRENT_VERSION = "4.1.0"
 
 # =============================================================================
 # 🎨 UI THEME (Professional Dark Mode)
@@ -78,3 +78,4 @@ FONTS = {
 NUM_WORKERS = 4                # Number of parallel analysis threads
 DOWNLOAD_RETRIES = 3           # Number of retries for failed downloads
 BATCH_SIZE = 50                # Number of stars to process in auto mode
+LANGUAGE = 'EN'                # Interface Language ('EN' or 'ES')

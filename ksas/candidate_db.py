@@ -85,6 +85,19 @@ class CandidateDatabase:
             })
         
         self.save()
+        
+    def update_candidate(self, tic_id, updates):
+        """
+        Update specific fields of a candidate.
+        
+        Args:
+            tic_id: TIC ID
+            updates: Dictionary of fields to update
+        """
+        if tic_id in self.candidates:
+            self.candidates[tic_id].update(updates)
+            self.save()
+            logger.info(f"Updated fields for {tic_id}: {list(updates.keys())}")
     
     def mark_reviewed(self, tic_id, is_discovered, notes=""):
         """
@@ -137,3 +150,73 @@ class CandidateDatabase:
             'unreviewed': unreviewed,
             'potentially_new': potentially_new
         }
+
+    def check_and_migrate(self):
+        """
+        Check for old data format and migrate if necessary.
+        Returns True if safe to proceed, False if user cancelled.
+        """
+        needs_migration = False
+        for tic, data in self.candidates.items():
+            if 'score' not in data or 'quality' not in data:
+                needs_migration = True
+                break
+        
+        if not needs_migration:
+            return True
+            
+        # Ask user
+        import tkinter as tk
+        from tkinter import messagebox
+        from ksas.locales import T
+        
+        # Ensure we have a root window for the dialog if none exists
+        root = tk.Tk()
+        root.withdraw() # Hide main window
+        
+        response = messagebox.askyesno(
+            T.get('migration_title'),
+            T.get('migration_prompt')
+        )
+        
+        if response:
+            try:
+                from ksas.candidate_quality_analyzer import CandidateQualityAnalyzer
+                analyzer = CandidateQualityAnalyzer()
+                
+                count = 0
+                for tic, data in self.candidates.items():
+                    # Only update if missing fields
+                    if 'score' not in data or 'quality' not in data:
+                        # Analyze using existing data
+                        # Note: analyze_candidate expects 'snr', 'period', 'depth' which should exist
+                        # If 'snr' is missing in VERY old format, we might need to calc it from bls_power
+                        if 'snr' not in data:
+                            data['snr'] = max(data.get('bls_power', 0), data.get('tls_sde', 0))
+                            
+                        result = analyzer.analyze_candidate(tic, data)
+                        
+                        # Update fields
+                        self.candidates[tic].update({
+                            'score': result['score'],
+                            'quality': result['quality'],
+                            'analysis_summary': result['recommendation'],
+                            'snr': result['snr'], # Ensure SNR is set
+                            'depth_percent': result['depth_percent']
+                        })
+                        count += 1
+                
+                self.save()
+                messagebox.showinfo(T.get('success'), f"{T.get('migration_success')} ({count} updated)")
+                root.destroy()
+                return True
+                
+            except Exception as e:
+                logger.error(f"Migration failed: {e}")
+                messagebox.showerror("Error", f"Migration failed: {e}")
+                root.destroy()
+                return False
+        else:
+            messagebox.showinfo(T.get('warning'), T.get('migration_cancel'))
+            root.destroy()
+            return False

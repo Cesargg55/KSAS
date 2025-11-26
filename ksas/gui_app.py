@@ -39,20 +39,38 @@ class KSASGui:
         
         # Check for updates
         from ksas.updater import AutoUpdater
-        from ksas.config import GITHUB_REPO, CURRENT_VERSION
+        from ksas.config import GITHUB_REPO, CURRENT_VERSION, LANGUAGE
+        from ksas.locales import T
+        
+        # Initialize Language
+        T.set_language(LANGUAGE)
+        
         self.updater = AutoUpdater(CURRENT_VERSION, GITHUB_REPO)
         self.updater.check_async(self.root)
     
     def setup_ui(self):
         """Create UI layout."""
+        from ksas.locales import T
+        
+        # Menu Bar for Language
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Settings", menu=settings_menu)
+        
+        lang_menu = tk.Menu(settings_menu, tearoff=0)
+        settings_menu.add_cascade(label="Language / Idioma", menu=lang_menu)
+        lang_menu.add_command(label="English", command=lambda: self.change_language('EN'))
+        lang_menu.add_command(label="Español", command=lambda: self.change_language('ES'))
         
         # Title
         title_frame = tk.Frame(self.root, bg='#1a1a1a')
         title_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        title = tk.Label(title_frame, text="🔬 KSAS - Autonomous Exoplanet Hunter 🔬",
+        self.title_label = tk.Label(title_frame, text=T.get('main_title'),
                         font=('Arial', 20, 'bold'), fg='#00ff00', bg='#1a1a1a')
-        title.pack()
+        self.title_label.pack()
         
         # Main container
         main_container = tk.Frame(self.root, bg='#1a1a1a')
@@ -70,9 +88,9 @@ class KSASGui:
         # === LEFT PANEL ===
         
         # Current Target
-        target_label = tk.Label(left_panel, text="Current Target", 
+        self.lbl_target = tk.Label(left_panel, text=T.get('current_target'), 
                                font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
-        target_label.pack(pady=(10, 5))
+        self.lbl_target.pack(pady=(10, 5))
         
         self.target_var = tk.StringVar(value=self.current_target)
         target_display = tk.Label(left_panel, textvariable=self.target_var,
@@ -81,28 +99,36 @@ class KSASGui:
         target_display.pack(fill=tk.X, padx=10)
         
         # Statistics
-        stats_label = tk.Label(left_panel, text="Statistics", 
+        self.lbl_stats = tk.Label(left_panel, text=T.get('statistics'), 
                               font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
-        stats_label.pack(pady=(15, 5))
+        self.lbl_stats.pack(pady=(15, 5))
         
         stats_frame = tk.Frame(left_panel, bg='#1a1a1a', relief=tk.SUNKEN, borderwidth=2)
         stats_frame.pack(fill=tk.X, padx=10, pady=5)
         
         self.stat_labels = {}
-        for key, label in [('analyzed', '📊 Session Analyzed'), ('total_analyzed', '🏆 Total (Historical)'),
-                          ('skipped', '⏭️ Skipped'), ('candidates', '🌟 Candidates'), 
-                          ('rejected', '❌ Rejected')]:
+        # Keys match T.get keys
+        self.stat_keys = [('analyzed', 'session_analyzed'), ('total_analyzed', 'total_analyzed'),
+                          ('skipped', 'skipped'), ('candidates', 'candidates'), 
+                          ('rejected', 'rejected')]
+                          
+        self.stat_ui_labels = {} # To update text later
+        
+        for key, lang_key in self.stat_keys:
             row = tk.Frame(stats_frame, bg='#1a1a1a')
             row.pack(fill=tk.X, pady=2, padx=5)
-            tk.Label(row, text=f"{label}:", font=('Arial', 10), fg='#aaaaaa', bg='#1a1a1a').pack(side=tk.LEFT)
+            lbl = tk.Label(row, text=f"{T.get(lang_key)}:", font=('Arial', 10), fg='#aaaaaa', bg='#1a1a1a')
+            lbl.pack(side=tk.LEFT)
+            self.stat_ui_labels[key] = lbl # Store reference
+            
             self.stat_labels[key] = tk.Label(row, text="0", font=('Arial', 10, 'bold'), 
                                              fg='#00ff00', bg='#1a1a1a')
             self.stat_labels[key].pack(side=tk.RIGHT)
         
         # Current Analysis
-        analysis_label = tk.Label(left_panel, text="Analysis Status", 
-                                 font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
-        analysis_label.pack(pady=(15, 5))
+        self.lbl_status = tk.Label(left_panel, text=T.get('analysis_status'), 
+                                  font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
+        self.lbl_status.pack(pady=(15, 5))
         
         self.status_var = tk.StringVar(value="Idle")
         status_display = tk.Label(left_panel, textvariable=self.status_var,
@@ -111,9 +137,9 @@ class KSASGui:
         status_display.pack(fill=tk.X, padx=10)
         
         # Results
-        results_label = tk.Label(left_panel, text="Latest Results", 
-                                font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
-        results_label.pack(pady=(15, 5))
+        self.lbl_results = tk.Label(left_panel, text=T.get('latest_results'), 
+                                   font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
+        self.lbl_results.pack(pady=(15, 5))
         
         self.results_var = tk.StringVar(value="No results yet")
         results_display = tk.Label(left_panel, textvariable=self.results_var,
@@ -126,31 +152,31 @@ class KSASGui:
         control_frame = tk.Frame(left_panel, bg='#2a2a2a')
         control_frame.pack(pady=10)
         
-        self.pause_btn = tk.Button(control_frame, text="⏸️ PAUSE", 
+        self.pause_btn = tk.Button(control_frame, text=T.get('pause'), 
                                    command=self.toggle_pause,
                                    font=('Arial', 10, 'bold'), bg='#ff6600', fg='white')
         self.pause_btn.pack(pady=5)
         
         # Candidate Manager button
-        self.manager_btn = tk.Button(control_frame, text="📋 Candidate Manager",
+        self.manager_btn = tk.Button(control_frame, text=T.get('btn_manager'),
                                      command=self.open_candidate_manager,
                                      font=('Arial', 10, 'bold'), bg='#0066cc', fg='white')
         self.manager_btn.pack(pady=5)
         
         # TIC Verifier button
-        self.verifier_btn = tk.Button(control_frame, text="🔍 TIC Verifier",
+        self.verifier_btn = tk.Button(control_frame, text=T.get('btn_verifier'),
                                       command=self.open_tic_verifier,
                                       font=('Arial', 10, 'bold'), bg='#9900cc', fg='white')
         self.verifier_btn.pack(pady=5)
         
         # Manual Analyzer button
-        self.manual_btn = tk.Button(control_frame, text="🔬 Re-analyze TIC",
+        self.manual_btn = tk.Button(control_frame, text=T.get('btn_manual'),
                                     command=self.open_manual_analyzer,
                                     font=('Arial', 10, 'bold'), bg='#cc6600', fg='white')
         self.manual_btn.pack(pady=5)
         
         # Image Scanner button
-        self.scanner_btn = tk.Button(control_frame, text="📊 Scan Candidates",
+        self.scanner_btn = tk.Button(control_frame, text=T.get('btn_scanner'),
                                      command=self.open_image_scanner,
                                      font=('Arial', 10, 'bold'), bg='#cc00cc', fg='white')
         self.scanner_btn.pack(pady=5)
@@ -163,11 +189,13 @@ class KSASGui:
         
         # General Help
         HelpSystem.create_help_button(help_frame, 'general').pack(side=tk.LEFT, padx=2)
-        tk.Label(help_frame, text="How it works", fg='#aaaaaa', bg='#2a2a2a').pack(side=tk.LEFT, padx=5)
+        self.lbl_help1 = tk.Label(help_frame, text=T.get('how_it_works'), fg='#aaaaaa', bg='#2a2a2a')
+        self.lbl_help1.pack(side=tk.LEFT, padx=5)
         
         # Discovery Help
         HelpSystem.create_help_button(help_frame, 'discovery').pack(side=tk.RIGHT, padx=2)
-        tk.Label(help_frame, text="Found one?", fg='#aaaaaa', bg='#2a2a2a').pack(side=tk.RIGHT, padx=5)
+        self.lbl_help2 = tk.Label(help_frame, text=T.get('found_one'), fg='#aaaaaa', bg='#2a2a2a')
+        self.lbl_help2.pack(side=tk.RIGHT, padx=5)
         
         # Reference to candidate database (will be set externally)
         self.candidate_db = None
@@ -175,9 +203,9 @@ class KSASGui:
         # === RIGHT PANEL ===
         
         # Event Log
-        log_label = tk.Label(right_panel, text="Event Log", 
+        self.lbl_log = tk.Label(right_panel, text=T.get('event_log'), 
                             font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
-        log_label.pack(pady=(5, 5))
+        self.lbl_log.pack(pady=(5, 5))
         
         self.log_text = scrolledtext.ScrolledText(right_panel, height=12, 
                                                   bg='#0a0a0a', fg='#00ff00',
@@ -185,14 +213,14 @@ class KSASGui:
         self.log_text.pack(fill=tk.BOTH, padx=10, pady=5)
         
         # Light Curve Visualization
-        viz_label = tk.Label(right_panel, text="Light Curve Preview", 
+        self.lbl_preview = tk.Label(right_panel, text=T.get('lightcurve_preview'), 
                             font=('Arial', 12, 'bold'), fg='#ffaa00', bg='#2a2a2a')
-        viz_label.pack(pady=(10, 5))
+        self.lbl_preview.pack(pady=(10, 5))
         
         # Matplotlib figure
         self.fig = Figure(figsize=(8, 4), facecolor='#1a1a1a')
         self.ax = self.fig.add_subplot(111, facecolor='#0a0a0a')
-        self.ax.set_title("Waiting for data...", color='white')
+        self.ax.set_title(T.get('waiting_data'), color='white')
         self.ax.tick_params(colors='white')
         self.ax.spines['bottom'].set_color('white')
         self.ax.spines['top'].set_color('white')
@@ -323,6 +351,40 @@ class KSASGui:
         """Start the GUI."""
         self.root.mainloop()
     
+    def change_language(self, lang):
+        """Change application language and update UI."""
+        from ksas.locales import T
+        T.set_language(lang)
+        
+        # Update Main UI
+        self.title_label.config(text=T.get('main_title'))
+        self.lbl_target.config(text=T.get('current_target'))
+        self.lbl_stats.config(text=T.get('statistics'))
+        self.lbl_status.config(text=T.get('analysis_status'))
+        self.lbl_results.config(text=T.get('latest_results'))
+        self.lbl_log.config(text=T.get('event_log'))
+        self.lbl_preview.config(text=T.get('lightcurve_preview'))
+        self.lbl_help1.config(text=T.get('how_it_works'))
+        self.lbl_help2.config(text=T.get('found_one'))
+        
+        # Update Buttons
+        if self.paused:
+            self.pause_btn.config(text=T.get('resume'))
+        else:
+            self.pause_btn.config(text=T.get('pause'))
+            
+        self.manager_btn.config(text=T.get('btn_manager'))
+        self.verifier_btn.config(text=T.get('btn_verifier'))
+        self.manual_btn.config(text=T.get('btn_manual'))
+        self.scanner_btn.config(text=T.get('btn_scanner'))
+        
+        # Update Stats Labels
+        for key, lang_key in self.stat_keys:
+            if key in self.stat_ui_labels:
+                self.stat_ui_labels[key].config(text=f"{T.get(lang_key)}:")
+        
+        self.log(f"Language changed to {lang}")
+
     def start_in_thread(self):
         """Start GUI in separate thread."""
         gui_thread = threading.Thread(target=self.run, daemon=True)

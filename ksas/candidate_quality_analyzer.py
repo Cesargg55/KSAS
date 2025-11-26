@@ -252,3 +252,29 @@ class CandidateQualityAnalyzer:
             'avg_snr': avg_snr,
             'max_snr': max_snr
         }
+
+    def save_results_to_db(self, results):
+        """
+        Save analysis scores back to candidates.json.
+        This allows the Candidate Manager to filter by score.
+        """
+        try:
+            from ksas.candidate_db import CandidateDatabase
+            db = CandidateDatabase()
+            
+            count = 0
+            for res in results:
+                tic_id = res['tic_id']
+                # Update candidate with new metrics
+                db.update_candidate(tic_id, {
+                    'score': res['score'],
+                    'quality': res['quality'],
+                    'analysis_summary': res['recommendation']
+                })
+                count += 1
+                
+            logger.info(f"Saved scores for {count} candidates to database.")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving results to DB: {e}")
+            return False
