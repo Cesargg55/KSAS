@@ -1,0 +1,9 @@
+lightkurve
+numpy
+matplotlib
+scipy
+astropy
+transitleastsquares
+setuptools
+opencv-python
+Pillow
