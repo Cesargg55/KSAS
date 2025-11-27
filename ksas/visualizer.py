@@ -39,26 +39,38 @@ class Visualizer:
             
             logger.info(f"Generating plot for {target_id}...")
             
-            fig, axes = plt.subplots(3, 1, figsize=(10, 15))
+            # Use object-oriented API with Agg backend for thread safety
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_agg import FigureCanvasAgg
+            
+            fig = Figure(figsize=(10, 15))
+            canvas = FigureCanvasAgg(fig)
+            
+            # Create subplots manually
+            ax1 = fig.add_subplot(311)
+            ax2 = fig.add_subplot(312)
+            ax3 = fig.add_subplot(313)
             
             # 1. Light Curve
-            lc.scatter(ax=axes[0], label="Flux")
-            axes[0].set_title(f"{target_id} - Light Curve")
+            lc.scatter(ax=ax1, label="Flux")
+            ax1.set_title(f"{target_id} - Light Curve")
             
             # 2. Periodogram
-            periodogram.plot(ax=axes[1], view='period')
+            periodogram.plot(ax=ax2, view='period')
             # Get power from result
             power = result.power if hasattr(result, 'power') else result.sde
-            axes[1].set_title(f"BLS Periodogram (Max Power: {power:.2f})")
+            ax2.set_title(f"BLS Periodogram (Max Power: {power:.2f})")
             
             # 3. Folded Light Curve
             folded = lc.fold(period=result.period, epoch_time=result.t0)
-            folded.scatter(ax=axes[2], label=f"Period: {result.period:.4f} d")
-            axes[2].set_title(f"Folded Light Curve")
+            folded.scatter(ax=ax3, label=f"Period: {result.period:.4f} d")
+            ax3.set_title(f"Folded Light Curve")
             
-            plt.tight_layout()
-            plt.savefig(filename)
-            plt.close(fig)
+            fig.tight_layout()
+            fig.savefig(filename)
+            
+            # Explicitly close/clear to free memory
+            plt.close(fig) # Just in case, though fig is local
             
             logger.info(f"Plot saved to {filename}")
             

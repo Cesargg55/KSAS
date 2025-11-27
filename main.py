@@ -332,13 +332,24 @@ def check_missing_reports(candidate_db, interface):
         return
 
     # Ask user
-    root = tk.Tk()
-    root.withdraw()
+    # Use existing interface root if available, otherwise create one (headless case handled elsewhere)
+    parent = getattr(interface, 'root', None)
     
-    response = messagebox.askyesno(
-        T.get('reports_missing_title'),
-        T.get('reports_missing_prompt').format(count=len(missing_tics))
-    )
+    if parent:
+        response = messagebox.askyesno(
+            T.get('reports_missing_title'),
+            T.get('reports_missing_prompt').format(count=len(missing_tics)),
+            parent=parent
+        )
+    else:
+        # Fallback for headless or pre-gui (should not happen in this flow)
+        root = tk.Tk()
+        root.withdraw()
+        response = messagebox.askyesno(
+            T.get('reports_missing_title'),
+            T.get('reports_missing_prompt').format(count=len(missing_tics))
+        )
+        root.destroy()
     
     if response:
         print(T.get('generating_reports'))
@@ -385,11 +396,9 @@ def check_missing_reports(candidate_db, interface):
         msg = T.get('report_generation_complete')
         print(msg)
         interface.send_update('log', msg)
-        messagebox.showinfo(T.get('success'), f"{msg} ({count}/{len(missing_tics)})")
+        messagebox.showinfo(T.get('success'), f"{msg} ({count}/{len(missing_tics)})", parent=parent)
     else:
         print(T.get('report_generation_skipped'))
-    
-    root.destroy()
 
 def main():
     print("="*60)
