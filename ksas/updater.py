@@ -81,23 +81,36 @@ class AutoUpdater:
             self.update_now(parent)
 
     def update_now(self, parent):
-        """Execute git pull and restart/exit."""
+        """Execute git force update (fetch + reset --hard) and restart/exit."""
         try:
             # Check if git is available
             subprocess.run(["git", "--version"], check=True, capture_output=True)
             
-            # Execute pull
-            result = subprocess.run(["git", "pull"], capture_output=True, text=True)
+            # 1. Fetch all changes
+            subprocess.run(["git", "fetch", "--all"], check=True, capture_output=True)
+            
+            # 2. Detect current branch
+            branch = "main"
+            try:
+                res = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+                if res.returncode == 0 and res.stdout.strip():
+                    branch = res.stdout.strip()
+            except:
+                pass # Default to main
+            
+            # 3. Hard reset to match remote
+            # This overwrites local changes, which is necessary to fix conflicts
+            result = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"], capture_output=True, text=True)
             
             if result.returncode == 0:
                 messagebox.showinfo("Update Successful", 
-                                  "Update completed successfully!\n\nPlease restart the application.",
+                                  f"Update to {branch} completed successfully!\n\nLocal changes were overwritten.\nPlease restart the application.",
                                   parent=parent)
                 sys.exit(0)
             else:
-                logger.error(f"Git pull failed: {result.stderr}")
+                logger.error(f"Git reset failed: {result.stderr}")
                 messagebox.showerror("Update Failed", 
-                                   f"Git pull failed:\n{result.stderr}\n\nPlease update manually.",
+                                   f"Git update failed:\n{result.stderr}\n\nPlease update manually.",
                                    parent=parent)
                 
         except FileNotFoundError:
