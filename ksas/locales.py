@@ -1,21 +1,5 @@
 """
 KSAS Localization File
-Contains translations for English (EN) and Spanish (ES).
-"""
-
-TRANSLATIONS = {
-    'EN': {
-        # Main Window
-        'app_title': "KSAS - Kaesar Star Analysis System v4.1",
-        'main_title': "🔬 KSAS - Autonomous Exoplanet Hunter 🔬",
-        'current_target': "Current Target",
-        'statistics': "Statistics",
-        'session_analyzed': "📊 Session Analyzed",
-        'total_analyzed': "🏆 Total (Historical)",
-        'skipped': "⏭️ Skipped",
-        'candidates': "🌟 Candidates",
-        'rejected': "❌ Rejected",
-        'analysis_status': "Analysis Status",
         'latest_results': "Latest Results",
         'pause': "⏸️ PAUSE",
         'resume': "▶️ RESUME",
@@ -104,6 +88,12 @@ TRANSLATIONS = {
         'report_generation_complete': "Report generation complete.",
         'report_generation_skipped': "Report generation skipped.",
         
+        # ExoFOP Report
+        'btn_generate_report': "Generate ExoFOP Report",
+        'no_data_report': "No light curve data loaded. Please wait for load.",
+        'report_success': "PDF Report generated successfully:",
+        'report_error': "Error generating report.",
+        
         # Manual Analyzer
         'manual_title': "🔬 Manual TIC Analyzer",
         'enter_tic': "Enter TIC ID:",
@@ -117,23 +107,6 @@ TRANSLATIONS = {
         'confirm': "Confirm",
         'yes': "Yes",
         'no': "No",
-        'ok': "OK",
-        'cancel': "Cancel"
-    },
-    
-    'ES': {
-        # Main Window
-        'app_title': "KSAS - Sistema de Análisis Estelar Kaesar v4.1",
-        'main_title': "🔬 KSAS - Cazador Autónomo de Exoplanetas 🔬",
-        'current_target': "Objetivo Actual",
-        'statistics': "Estadísticas",
-        'session_analyzed': "📊 Sesión Analizada",
-        'total_analyzed': "🏆 Total (Histórico)",
-        'skipped': "⏭️ Omitidos",
-        'candidates': "🌟 Candidatos",
-        'rejected': "❌ Rechazados",
-        'analysis_status': "Estado del Análisis",
-        'latest_results': "Últimos Resultados",
         'pause': "⏸️ PAUSAR",
         'resume': "▶️ REANUDAR",
         'btn_manager': "📋 Gestor de Candidatos",
@@ -220,6 +193,12 @@ TRANSLATIONS = {
         'report_generated': "Generado: {tic}",
         'report_generation_complete': "Generación de informes completada.",
         'report_generation_skipped': "Generación de informes omitida.",
+        
+        # ExoFOP Report
+        'btn_generate_report': "Generar Reporte ExoFOP",
+        'no_data_report': "No hay datos de curva de luz cargados. Espere a que carguen.",
+        'report_success': "Reporte PDF generado exitosamente:",
+        'report_error': "Error al generar el reporte.",
         
         # Manual Analyzer
         'manual_title': "🔬 Analizador Manual TIC",

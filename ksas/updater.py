@@ -24,7 +24,7 @@ class AutoUpdater:
             parts = repo_url.rstrip('/').split('/')
             if len(parts) >= 2:
                 user = parts[-2]
-                repo = parts[-1]
+                repo = parts[-1].replace('.git', '')
                 self.api_url = f"https://api.github.com/repos/{user}/{repo}/releases/latest"
 
     def check_for_updates(self):

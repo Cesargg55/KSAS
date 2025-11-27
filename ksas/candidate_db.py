@@ -37,7 +37,7 @@ class CandidateDatabase:
         except Exception as e:
             logger.error(f"Could not save candidates database: {e}")
     
-    def add_candidate(self, tic_id, period, depth, bls_power=None, tls_sde=None, vetting_passed=True, detection_time=None):
+    def add_candidate(self, tic_id, period, depth, bls_power=None, tls_sde=None, vetting_passed=True, detection_time=None, t0=None, duration=None):
         """
         Add a new candidate or update existing.
         
@@ -49,6 +49,8 @@ class CandidateDatabase:
             tls_sde: TLS SDE (if TLS was run)
             vetting_passed: Whether candidate passed vetting tests
             detection_time: ISO timestamp (default: now)
+            t0: Transit Epoch (BTJD)
+            duration: Transit Duration (days)
         """
         if detection_time is None:
             detection_time = datetime.now().isoformat()
@@ -69,7 +71,9 @@ class CandidateDatabase:
                 'reviewed': False,
                 'is_discovered': None,  # None = unknown, True = yes, False = no
                 'notes': '',
-                'review_time': None
+                'review_time': None,
+                't0': t0,
+                'duration': duration
             }
             logger.info(f"Added new candidate: {tic_id} (BLS: {bls_power}, TLS: {tls_sde}, Vet: {vetting_passed})")
         else:
@@ -81,7 +85,9 @@ class CandidateDatabase:
                 'bls_power': bls_power,
                 'tls_sde': tls_sde,
                 'vetting_passed': vetting_passed,
-                'detection_time': detection_time
+                'detection_time': detection_time,
+                't0': t0,
+                'duration': duration
             })
         
         self.save()

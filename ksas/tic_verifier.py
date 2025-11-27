@@ -13,7 +13,7 @@ class TICVerifier:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'KSAS-Exoplanet-Verifier/4.0'
+            'User-Agent': 'KSAS-Exoplanet-Verifier/4.2'
         })
     
     def verify_tic(self, tic_id):

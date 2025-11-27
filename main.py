@@ -144,7 +144,9 @@ def analyze_single_target(target, stats):
                         depth=tls_result.depth if tls_result else bls_result.depth,
                         bls_power=bls_result.power,  # Always save BLS power
                         tls_sde=tls_result.sde if tls_result else None,  # Save TLS SDE if available
-                        vetting_passed=vet_result.passed  # Save vetting status
+                        vetting_passed=vet_result.passed,  # Save vetting status
+                        t0=t0,
+                        duration=duration
                     )
                 
                 with stats_lock:
@@ -391,7 +393,7 @@ def check_missing_reports(candidate_db, interface):
 
 def main():
     print("="*60)
-    print("   KSAS v4.1 - Kaesar Star Analysis System")
+    print("   KSAS v4.2 - Kaesar Star Analysis System")
     print("   PERFORMANCE OPTIMIZED - MULTI-THREADED")
     print("="*60)
     
@@ -441,6 +443,16 @@ def main():
         analysis_thread.start()
         
         # Run GUI (blocking)
+        # Check for updates in background
+        try:
+            from ksas.updater import AutoUpdater
+            from ksas.config import GITHUB_REPO, CURRENT_VERSION
+            updater = AutoUpdater(CURRENT_VERSION, GITHUB_REPO)
+            # Wait a bit for GUI to load then check
+            interface.root.after(2000, lambda: updater.check_async(interface.root))
+        except Exception as e:
+            logger.error(f"Failed to start updater: {e}")
+
         interface.run()
         
     else:

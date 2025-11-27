@@ -87,7 +87,48 @@ class ObservatoryWindow:
         
         self.vetting_label = tk.Label(self.info_frame, text=T.get('checking'), font=FONTS['mono'],
                                      fg='white', bg=COLORS['bg_panel'], justify=tk.LEFT)
+        self.vetting_label = tk.Label(self.info_frame, text=T.get('checking'), font=FONTS['mono'],
+                                     fg='white', bg=COLORS['bg_panel'], justify=tk.LEFT)
         self.vetting_label.pack(anchor=tk.W, padx=20)
+        
+        # 4. Actions
+        tk.Label(self.info_frame, text="Actions", font=FONTS['header'],
+                fg='white', bg=COLORS['bg_panel']).pack(anchor=tk.W, padx=10, pady=(20,5))
+        
+        tk.Button(self.info_frame, text=f"📄 {T.get('btn_generate_report')}", command=self.generate_report,
+                 bg='#0066cc', fg='white', font=('Arial', 10, 'bold')).pack(fill=tk.X, padx=20, pady=5)
+
+    def generate_report(self):
+        """Generate ExoFOP PDF report."""
+        if not self.lc_data:
+            messagebox.showwarning(T.get('warning'), T.get('no_data_report'))
+            return
+            
+        try:
+            from ksas.report_generator import ExoFOPReportGenerator
+            generator = ExoFOPReportGenerator()
+            
+            # Prepare data
+            # Ensure we have t0/duration if missing from DB (try to use logic defaults or 0)
+            report_data = self.data.copy()
+            if 't0' not in report_data:
+                report_data['t0'] = 0
+            if 'duration' not in report_data:
+                report_data['duration'] = 0
+                
+            path = generator.generate_report(self.tic_id, report_data, self.lc_data)
+            
+            if path:
+                messagebox.showinfo(T.get('success'), f"{T.get('report_success')}\n{path}")
+                # Open folder
+                import os
+                os.startfile(os.path.dirname(path))
+            else:
+                messagebox.showerror(T.get('error'), T.get('report_error'))
+                
+        except Exception as e:
+            print(f"Report error: {e}")
+            messagebox.showerror(T.get('error'), str(e))
 
     def analyze(self):
         # 1. Run Logic Engine
