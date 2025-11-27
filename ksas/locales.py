@@ -6,7 +6,7 @@ Contains translations for English (EN) and Spanish (ES).
 TRANSLATIONS = {
     'EN': {
         # Main Window
-        'app_title': "KSAS - Kaesar Star Analysis System v4.2",
+        'app_title': "KSAS - Kaesar Star Analysis System v4.2.3",
         'main_title': "🔬 KSAS - Autonomous Exoplanet Hunter 🔬",
         'current_target': "Current Target",
         'statistics': "Statistics",

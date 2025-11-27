@@ -1,5 +1,5 @@
 # 🔭 KSAS - Kaesar Star Analysis System
-### Autonomous Exoplanet Hunter (v4.2.0 Professional Edition)
+### Autonomous Exoplanet Hunter (v4.2.4 Professional Edition)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)

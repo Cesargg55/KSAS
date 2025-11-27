@@ -166,7 +166,7 @@ def analyze_single_target(target, stats):
         result['error'] = str(e)
         return result
 
-def parallel_analysis_loop(interface, use_gui=True, num_workers=4):
+def parallel_analysis_loop(interface, use_gui=True, num_workers=4, db_instance=None):
     """
     Main analysis loop with parallel processing.
     
@@ -174,6 +174,7 @@ def parallel_analysis_loop(interface, use_gui=True, num_workers=4):
         interface: GUI or headless interface
         use_gui: Whether GUI is available
         num_workers: Number of parallel workers
+        db_instance: Shared CandidateDatabase instance
     """
     global downloader, processor, bls_analyzer, tls_analyzer, vetting, visualizer, tracker, candidate_db
     
@@ -188,7 +189,12 @@ def parallel_analysis_loop(interface, use_gui=True, num_workers=4):
     vetting = CandidateVetting()
     visualizer = Visualizer()
     tracker = StarTracker()
-    candidate_db = CandidateDatabase()
+    
+    # Use passed DB instance or create new one (and update global)
+    if db_instance:
+        candidate_db = db_instance
+    else:
+        candidate_db = CandidateDatabase()
     
     interface.send_update('log', f"✓ Loaded {tracker.get_count()} previously analyzed stars")
     interface.send_update('log', f"🚀 Starting {num_workers} parallel workers...")
@@ -402,7 +408,7 @@ def check_missing_reports(candidate_db, interface):
 
 def main():
     print("="*60)
-    print("   KSAS v4.2 - Kaesar Star Analysis System")
+    print("   KSAS v4.2.3 - Kaesar Star Analysis System")
     print("   PERFORMANCE OPTIMIZED - MULTI-THREADED")
     print("="*60)
     
@@ -446,7 +452,7 @@ def main():
         # Start analysis in background thread
         analysis_thread = threading.Thread(
             target=parallel_analysis_loop, 
-            args=(interface, True, num_workers), 
+            args=(interface, True, num_workers, candidate_db), 
             daemon=True
         )
         analysis_thread.start()
