@@ -1,5 +1,21 @@
 """
 KSAS Localization File
+Contains translations for English (EN) and Spanish (ES).
+"""
+
+TRANSLATIONS = {
+    'EN': {
+        # Main Window
+        'app_title': "KSAS - Kaesar Star Analysis System v4.2",
+        'main_title': "🔬 KSAS - Autonomous Exoplanet Hunter 🔬",
+        'current_target': "Current Target",
+        'statistics': "Statistics",
+        'session_analyzed': "📊 Session Analyzed",
+        'total_analyzed': "🏆 Total (Historical)",
+        'skipped': "⏭️ Skipped",
+        'candidates': "🌟 Candidates",
+        'rejected': "❌ Rejected",
+        'analysis_status': "Analysis Status",
         'latest_results': "Latest Results",
         'pause': "⏸️ PAUSE",
         'resume': "▶️ RESUME",
@@ -107,6 +123,23 @@ KSAS Localization File
         'confirm': "Confirm",
         'yes': "Yes",
         'no': "No",
+        'ok': "OK",
+        'cancel': "Cancel"
+    },
+    
+    'ES': {
+        # Main Window
+        'app_title': "KSAS - Sistema de Análisis Estelar Kaesar v4.2",
+        'main_title': "🔬 KSAS - Cazador Autónomo de Exoplanetas 🔬",
+        'current_target': "Objetivo Actual",
+        'statistics': "Estadísticas",
+        'session_analyzed': "📊 Sesión Analizada",
+        'total_analyzed': "🏆 Total (Histórico)",
+        'skipped': "⏭️ Omitidos",
+        'candidates': "🌟 Candidatos",
+        'rejected': "❌ Rechazados",
+        'analysis_status': "Estado del Análisis",
+        'latest_results': "Últimos Resultados",
         'pause': "⏸️ PAUSAR",
         'resume': "▶️ REANUDAR",
         'btn_manager': "📋 Gestor de Candidatos",
