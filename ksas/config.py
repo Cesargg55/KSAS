@@ -42,7 +42,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # TODO: REPLACE THIS WITH YOUR ACTUAL GITHUB REPO URL
 GITHUB_REPO = "https://github.com/Cesargg55/KSAS.git" 
-CURRENT_VERSION = "4.2.4"
+CURRENT_VERSION = "4.4.0"
 
 # =============================================================================
 # 🎨 UI THEME (Professional Dark Mode)

@@ -21,7 +21,7 @@ class HeadlessInterface:
         self.start_time = time.time()
         
         print("="*70)
-        print("   KSAS v3.0 - HEADLESS MODE (Server)")
+        print("   KSAS v4.4 - HEADLESS MODE (Server)")
         print("   Running in console-only mode (no GUI)")
         print("="*70)
         print()

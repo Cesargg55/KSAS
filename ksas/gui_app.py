@@ -15,7 +15,7 @@ class KSASGui:
     
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("KSAS - Kaesar Star Analysis System v3.0")
+        self.root.title("KSAS - Kaesar Star Analysis System v4.4")
         self.root.geometry("1400x900")
         self.root.configure(bg='#1a1a1a')
         

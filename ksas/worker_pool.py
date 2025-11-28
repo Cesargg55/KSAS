@@ -2,31 +2,32 @@ import threading
 import queue
 import time
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
 class WorkerPool:
     """
     Manages parallel workers for analyzing multiple stars simultaneously.
-    Thread-safe implementation with work queue and result handling.
+    Uses MULTIPROCESSING for true parallelism (bypassing GIL).
     """
     
-    def __init__(self, num_workers=4, max_queue_size=50):
+    def __init__(self, num_workers=4, max_queue_size=50, initializer=None):
         """
         Args:
-            num_workers: Number of parallel analysis threads
+            num_workers: Number of parallel analysis processes
             max_queue_size: Maximum number of pending targets
+            initializer: Function to initialize worker process
         """
         self.num_workers = num_workers
         self.max_queue_size = max_queue_size
         
-        # Thread-safe queues
+        # Thread-safe queues (for communicating with main thread)
         self.work_queue = queue.Queue(maxsize=max_queue_size)
         self.result_queue = queue.Queue()
         
-        # Thread pool
-        self.executor = ThreadPoolExecutor(max_workers=num_workers)
+        # Process pool
+        self.executor = ProcessPoolExecutor(max_workers=num_workers, initializer=initializer)
         
         # Active futures
         self.active_futures = set()

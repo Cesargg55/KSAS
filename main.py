@@ -52,12 +52,40 @@ def can_use_gui():
     except Exception:
         return False
 
-def analyze_single_target(target, stats):
+# Global components for WORKER processes
+# These are initialized per-process via init_worker()
+worker_components = {}
+
+def init_worker():
+    """Initialize components in each worker process."""
+    global worker_components
+    # Re-import to ensure clean state if needed
+    from ksas.downloader import DataDownloader
+    from ksas.processor import DataProcessor
+    from ksas.analyzer import Analyzer
+    from ksas.tls_analyzer import TLSAnalyzer
+    from ksas.vetting import CandidateVetting
+    
+    worker_components['downloader'] = DataDownloader()
+    worker_components['processor'] = DataProcessor()
+    worker_components['bls_analyzer'] = Analyzer(snr_threshold=10)
+    worker_components['tls_analyzer'] = TLSAnalyzer(sde_threshold=7.0)
+    worker_components['vetting'] = CandidateVetting()
+    
+    # Configure logging for worker
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - [WORKER] - %(message)s',
+        datefmt='%H:%M:%S'
+    )
+
+def analyze_single_target(target):
     """
-    Analyze a single target (called by worker threads).
-    Returns result dict for main thread to process.
+    Analyze a single target (runs in worker process).
+    Uses process-local components initialized in init_worker.
+    Does NOT access shared state (tracker, db, stats).
     """
-    global downloader, processor, bls_analyzer, tls_analyzer, vetting, tracker, candidate_db
+    global worker_components
     
     result = {
         'target': target,
@@ -66,22 +94,26 @@ def analyze_single_target(target, stats):
         'bls_result': None,
         'tls_result': None,
         'vet_result': None,
-        'candidate': False
+        'candidate': False,
+        'period': None,
+        't0': None,
+        'duration': None,
+        'depth': None,
+        'power': None,
+        'sde': None
     }
     
     try:
-        # Check if already analyzed
-        with tracker_lock:
-            if tracker.is_analyzed(target):
-                result['status'] = 'already_analyzed'
-                return result
+        downloader = worker_components['downloader']
+        processor = worker_components['processor']
+        bls_analyzer = worker_components['bls_analyzer']
+        tls_analyzer = worker_components['tls_analyzer']
+        vetting = worker_components['vetting']
         
         # 1. Download
         lc = downloader.download_lightcurve(target)
         if lc is None:
             result['status'] = 'no_data'
-            with tracker_lock:
-                tracker.mark_analyzed(target)
             return result
         
         result['lc'] = lc
@@ -90,8 +122,6 @@ def analyze_single_target(target, stats):
         clean_lc = processor.process_lightcurve(lc)
         if clean_lc is None:
             result['status'] = 'processing_failed'
-            with tracker_lock:
-                tracker.mark_analyzed(target)
             return result
         
         result['lc'] = clean_lc
@@ -101,25 +131,19 @@ def analyze_single_target(target, stats):
         
         if bls_result is None:
             result['status'] = 'bls_failed'
-            with tracker_lock:
-                tracker.mark_analyzed(target)
             return result
         
         result['bls_result'] = bls_result
         result['bls_periodogram'] = bls_periodogram
+        result['power'] = bls_result.power
         
         # 4. TLS Analysis (if BLS found something)
         tls_result = None
         if bls_result.is_candidate:
             tls_result, tls_obj = tls_analyzer.analyze(clean_lc, target)
             result['tls_result'] = tls_result
-        
-        # Mark as analyzed
-        with tracker_lock:
-            tracker.mark_analyzed(target)
-            with stats_lock:
-                stats['analyzed'] += 1
-                stats['total_analyzed'] += 1
+            if tls_result:
+                result['sde'] = tls_result.sde
         
         # 5. Check if candidate
         if bls_result.is_candidate or (tls_result and tls_analyzer.is_significant(tls_result)):
@@ -127,6 +151,12 @@ def analyze_single_target(target, stats):
             period = tls_result.period if tls_result else bls_result.period
             t0 = tls_result.t0 if tls_result else bls_result.t0
             duration = tls_result.duration if tls_result else bls_result.duration
+            depth = tls_result.depth if tls_result else bls_result.depth
+            
+            result['period'] = period
+            result['t0'] = t0
+            result['duration'] = duration
+            result['depth'] = depth
             
             # 6. Vetting
             vet_result = vetting.vet_candidate(clean_lc, period, t0, duration)
@@ -135,33 +165,15 @@ def analyze_single_target(target, stats):
             if vet_result.passed:
                 result['status'] = 'candidate_confirmed'
                 result['candidate'] = True
-                
-                # Save to candidate database (thread-safe)
-                with candidate_lock:
-                    candidate_db.add_candidate(
-                        tic_id=target,
-                        period=period,
-                        depth=tls_result.depth if tls_result else bls_result.depth,
-                        bls_power=bls_result.power,  # Always save BLS power
-                        tls_sde=tls_result.sde if tls_result else None,  # Save TLS SDE if available
-                        vetting_passed=vet_result.passed,  # Save vetting status
-                        t0=t0,
-                        duration=duration
-                    )
-                
-                with stats_lock:
-                    stats['candidates'] += 1
             else:
                 result['status'] = 'candidate_rejected'
-                with stats_lock:
-                    stats['rejected'] += 1
         else:
             result['status'] = 'analyzed_no_signal'
         
         return result
         
     except Exception as e:
-        logger.error(f"Error analyzing {target}: {e}")
+        # logger.error(f"Error analyzing {target}: {e}") # Logger might not be safe if not configured
         result['status'] = 'error'
         result['error'] = str(e)
         return result
@@ -169,24 +181,14 @@ def analyze_single_target(target, stats):
 def parallel_analysis_loop(interface, use_gui=True, num_workers=4, db_instance=None):
     """
     Main analysis loop with parallel processing.
-    
-    Args:
-        interface: GUI or headless interface
-        use_gui: Whether GUI is available
-        num_workers: Number of parallel workers
-        db_instance: Shared CandidateDatabase instance
     """
-    global downloader, processor, bls_analyzer, tls_analyzer, vetting, visualizer, tracker, candidate_db
+    global visualizer, tracker, candidate_db
     
     logger.info("Initializing KSAS components...")
     interface.send_update('log', "🔧 Initializing components...")
     
-    # Initialize components (shared across threads)
-    downloader = DataDownloader()
-    processor = DataProcessor()
-    bls_analyzer = Analyzer(snr_threshold=10)
-    tls_analyzer = TLSAnalyzer(sde_threshold=7.0)
-    vetting = CandidateVetting()
+    # Initialize MAIN PROCESS components
+    # Workers have their own via init_worker
     visualizer = Visualizer()
     tracker = StarTracker()
     
@@ -213,8 +215,8 @@ def parallel_analysis_loop(interface, use_gui=True, num_workers=4, db_instance=N
     smart_targeting = SmartTargeting()
     target_generator = smart_targeting.generate_smart_targets()
     
-    # Worker pool
-    pool = WorkerPool(num_workers=num_workers)
+    # Worker pool with INITIALIZER
+    pool = WorkerPool(num_workers=num_workers, initializer=init_worker)
     
     interface.send_update('log', "🎯 Starting autonomous search mode...")
     
@@ -235,12 +237,11 @@ def parallel_analysis_loop(interface, use_gui=True, num_workers=4, db_instance=N
                 target = next(target_generator)
                 
                 # Check if already analyzed before submitting
-                with tracker_lock:
-                    if tracker.is_analyzed(target):
-                        continue
+                if tracker.is_analyzed(target):
+                    continue
                 
-                # Submit to pool
-                pool.submit_work(analyze_single_target, target, stats)
+                # Submit to pool - NO stats passed, NO tracker passed
+                pool.submit_work(analyze_single_target, target)
                 targets_submitted += 1
                 
                 interface.send_update('target', f"{target} (Worker pool: {pool.get_active_count()}/{num_workers})")
@@ -248,7 +249,9 @@ def parallel_analysis_loop(interface, use_gui=True, num_workers=4, db_instance=N
             # Process results
             result = pool.get_result(timeout=0.1)
             if result:
-                handle_result(result, interface, use_gui, stats)
+                # Need TLSAnalyzer instance for is_significant check
+                tls_analyzer_temp = TLSAnalyzer(sde_threshold=7.0)
+                handle_result(result, interface, use_gui, stats, tracker, candidate_db, tls_analyzer_temp)
             
             # Update stats periodically
             if time.time() - last_stats_update > 2.0:
@@ -278,39 +281,63 @@ def parallel_analysis_loop(interface, use_gui=True, num_workers=4, db_instance=N
         interface.send_update('log', "🛑 Analysis stopped")
         interface.send_update('status', "Stopped")
 
-def handle_result(result, interface, use_gui, stats):
-    """Handle a completed analysis result."""
+def handle_result(result, interface, use_gui, stats, tracker, candidate_db, tls_analyzer_instance):
+    """Handle a completed analysis result in the MAIN process."""
     target = result['target']
     status = result['status']
     
+    # Always mark as analyzed if we attempted it (except maybe for 'init' errors?)
+    # If status is 'no_data', 'processing_failed', 'bls_failed', 'analyzed_no_signal', 'candidate_*'
+    # we should mark it.
+    if status != 'error':
+        tracker.mark_analyzed(target)
+        stats['analyzed'] += 1
+        stats['total_analyzed'] += 1
+    
     if status == 'no_data':
-        with stats_lock:
-            stats['skipped'] += 1
+        stats['skipped'] += 1
         interface.send_update('log', f"⏭️ No data for {target}")
         
     elif status == 'already_analyzed':
+        # Should be caught before submission, but just in case
         interface.send_update('log', f"⏭️ {target} already analyzed")
         
     elif status == 'processing_failed' or status == 'bls_failed':
-        with stats_lock:
-            stats['skipped'] += 1
+        stats['skipped'] += 1
         interface.send_update('log', f"⚠️ Analysis failed for {target}")
         
     elif status == 'candidate_confirmed':
+        stats['candidates'] += 1
         interface.send_update('log', f"🌟🌟🌟 EXOPLANET CANDIDATE: {target} 🌟🌟🌟")
         interface.send_update('log', f"✓ Passed all vetting tests")
+        
+        # Save to database
+        candidate_db.add_candidate(
+            tic_id=target,
+            period=result['period'],
+            depth=result['depth'],
+            bls_power=result['power'],
+            tls_sde=result['sde'],
+            vetting_passed=True,
+            t0=result['t0'],
+            duration=result['duration']
+        )
         
         # Show visualization (threadsafe)
         if use_gui and result.get('lc') and result.get('bls_periodogram'):
             tls_result = result.get('tls_result')
             bls_result = result.get('bls_result')
-            result_to_show = tls_result if tls_result and tls_analyzer.is_significant(tls_result) else bls_result
+            # Reconstruct result object or pass dict if visualizer supports it?
+            # Visualizer expects objects. The result dict contains objects (pickled back from worker).
+            # So we can pass them directly.
+            result_to_show = tls_result if tls_result and tls_analyzer_instance.is_significant(tls_result) else bls_result
             
-            # Save plots (show_plots might block, so just save)
+            # Save plots
             visualizer.save_plots(result['lc'], result['bls_periodogram'], result_to_show)
             interface.send_update('log', f"Report saved to output/ folder")
         
     elif status == 'candidate_rejected':
+        stats['rejected'] += 1
         interface.send_update('log', f"❌ Candidate rejected: {target}")
         
     elif status == 'analyzed_no_signal':

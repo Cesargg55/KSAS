@@ -87,8 +87,6 @@ class ObservatoryWindow:
         
         self.vetting_label = tk.Label(self.info_frame, text=T.get('checking'), font=FONTS['mono'],
                                      fg='white', bg=COLORS['bg_panel'], justify=tk.LEFT)
-        self.vetting_label = tk.Label(self.info_frame, text=T.get('checking'), font=FONTS['mono'],
-                                     fg='white', bg=COLORS['bg_panel'], justify=tk.LEFT)
         self.vetting_label.pack(anchor=tk.W, padx=20)
         
         # 4. Actions
@@ -115,6 +113,25 @@ class ObservatoryWindow:
                 report_data['t0'] = 0
             if 'duration' not in report_data:
                 report_data['duration'] = 0
+            
+            # Add extra fields for ExoFOP
+            # Disposition: If is_discovered is True -> FP (False Positive/Known), else PC (Planet Candidate)
+            # Note: This is a simplification. Ideally user sets this explicitly.
+            is_discovered = report_data.get('is_discovered', None)
+            if is_discovered:
+                report_data['disposition'] = 'FP' 
+            else:
+                report_data['disposition'] = 'PC'
+                
+            report_data['tag'] = "KSAS_Candidate" # Default tag
+            
+            # Ensure notes are present
+            if 'notes' not in report_data:
+                report_data['notes'] = "-"
+            
+            # Calculate derived parameters (Physics)
+            # This ensures we have Radius, Axis, Teq, etc. for the report
+            report_data = ObservatoryLogic.calculate_derived_parameters(report_data)
                 
             path = generator.generate_report(self.tic_id, report_data, self.lc_data)
             
